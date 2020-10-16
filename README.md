@@ -25,12 +25,6 @@ mline1 = MultiLineString(coords1)
 pprint(list(mline1))
 ```
 
-    [<shapely.geometry.linestring.LineString object at 0x00000294DAC62C88>,
-     <shapely.geometry.linestring.LineString object at 0x00000294DAC62D48>,
-     <shapely.geometry.linestring.LineString object at 0x00000294DAC62D88>,
-     <shapely.geometry.linestring.LineString object at 0x00000294DAC62DC8>]
-    
-
 Our *MultiLineString* consists of four *LineStrings*. If your goal is to filter out the short disconnected line `((3, 0), (3, 1))`, which has a `length` of 1, you can use `remove_disconnected()` method from the class `LineFilter` within the *shapey_line_filter.py* module to achieve that. 
 
 
@@ -61,9 +55,6 @@ mline1_filtered = my_mline1.remove_disconnected(length=2)
 # the filtered one is also a MultiLineString
 print(type(mline1_filtered))
 ```
-
-    <class 'shapely.geometry.multilinestring.MultiLineString'>
-    
 
 
 ```python
@@ -116,7 +107,7 @@ pyplot.show()
     
 
 
-Note: the figures module simpily modifies the size of the Matplotlib figure, if you really need this module, it locates here: https://github.com/Toblerity/Shapely/blob/master/docs/code/figures.py, and you may put it in your project directory as well, here: 'C:\Jupyter'.
+__Note__: the figures module simpily modifies the size of the Matplotlib figure, if you really need this module, it locates here: https://github.com/Toblerity/Shapely/blob/master/docs/code/figures.py, and you may put it in your project directory as well, here: 'C:\Jupyter'.
 
 ## 2. For lines share the same endpoints, remove those which are not the shortest
 This tool can also simplify a network by removing some loops. For example, oxbow lakes formed at the meanders of a river.
@@ -182,7 +173,7 @@ from shapely.ops import unary_union, linemerge
 from shapely_line_filter import LineFilter
 ```
 
-The source data could be either a ESRI Shapefile or a GeoJSON file, here we use the projected GEOJSON file consists of rivers and streams (line element) in Liechtenstein obtained from OpenStreetMap as an example. Put the source file *liechtenstein_river_stream_proj.geojson* into your working directory, here: 'C:\Jupyter'. You should put the *shapely_line_filter.py* in your wokring directory too.
+The source data could be either a ESRI Shapefile or a GeoJSON file, here we use the projected GEOJSON file consists of rivers and streams (line element) in Liechtenstein obtained from OpenStreetMap as an example. Put the source file *liechtenstein_river_stream_proj.geojson* into your working directory, here: 'C:\Jupyter'. You should put the *shapely_line_filter.py* in your wokring directory too. __Note__: the attribute table of the original data will not exist in your filtered data.
 
 
 ```python
@@ -193,17 +184,17 @@ with fiona.open("liechtenstein_river_stream_proj.geojson") as source:
     source_schema = source.schema
 
     mline = [shape(feature['geometry']) for feature in source]  # returns a new, independent line geometry with coordinates
-    mline_merge = linemerge(mline)  # merge lines, return a MultiLineString representing the merger of all contiguous elements of lines.
-    mline_split = unary_union(mline_merge)  # split lines at all intersections, return a MultiLineString
+    mline_union = unary_union(mline)  # union LineStrings and MultiLineStrings into a MultiLineString (which also split lines at their intersections)
+    mline_merge = linemerge(mline_union)  # merge all contiguous lines, return a MultiLineString
 
     start_time = time.time()  # start recording the processing time
     # using shapely_line_filter
-    my_mline = LineFilter(mline_split)
+    my_mline = LineFilter(mline_merge)
     # remove both short disconnected lines (no longer than 4 km) and oxbow lakes
     mline_filtered = my_mline.remove_disconnected_and_oxbow(length=4000)  # default length=4000, in meter
     print(f"Filtering lines lasted {round(time.time() - start_time, 0)} "
           f"seconds.")
-    print(f"Number of lines before filtering: {len(mline_split)}")
+    print(f"Number of lines before filtering: {len(mline_merge)}")
     print(f"Number of lines after filtering: {len(mline_filtered)}")
 ```
 
@@ -220,7 +211,7 @@ fig = pyplot.figure(1, figsize=(10, 6), dpi=90)
 # original
 ax = fig.add_subplot(121)
 
-plot_lines(ax, mline_split)
+plot_lines(ax, mline_merge)
 
 ax.set_title('a) original')
 ax.set_xlim(538600, 539800)
