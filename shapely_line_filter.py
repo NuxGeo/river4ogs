@@ -49,7 +49,10 @@ class LineFilter:
             filtered = linemerge(filtered)
             # if short_dead_ends is empty
             if not short_dead_ends:
+                filtered = MultiLineString(filtered)
                 return filtered
+            else:
+                return None
         else:
             for level_index in range(level):
                 ends = []
@@ -108,13 +111,14 @@ class LineFilter:
         Returns: a filtered network (a MultiLineString)."""
         rings = []
         for line_index in range(len(self.multi_line)):
-            if self.multi_line[line_index].coords[0]\
+            if self.multi_line[line_index].coords[0] \
                     == self.multi_line[line_index].coords[-1]:
                 rings.append(self.multi_line[line_index])
 
         # filter out rings
         filtered = [line for line in self.multi_line
                     if line not in rings]
+        filtered = MultiLineString(filtered)
         return filtered
 
     def remove_oxbow(self):
@@ -145,8 +149,8 @@ class LineFilter:
         filtered = MultiLineString(filtered)
         return filtered
 
-    def simplify(self, length=4000, is_simplest=True, level=None,
-                 remove_ring=True, remove_oxbow=True):
+    def simplify_line(self, length=4000, is_simplest=True, level=None,
+                      remove_ring=True, remove_oxbow=True):
         """Simplify line geometry by removing short dead end, short disjoint
          lines, disjoint rings, and oxbow lakes.
         Parameters:
@@ -203,7 +207,7 @@ class LineFilter:
                 if remove_ring:
                     rings = []
                     for line_index in range(len(filtered)):
-                        if filtered[line_index].coords[0]\
+                        if filtered[line_index].coords[0] \
                                 == filtered[line_index].coords[-1]:
                             rings.append(filtered[line_index])
 
@@ -230,11 +234,13 @@ class LineFilter:
                                     if line not in short_disjoint
                                     and line not in rings
                                     and line not in oxbow]
+                        filtered = MultiLineString(filtered)
                         return filtered
                     else:
                         filtered = [line for line in filtered
                                     if line not in short_disjoint
                                     and line not in rings]
+                        filtered = MultiLineString(filtered)
                         return filtered
                 else:
                     # Remove oxbow lakes
@@ -259,10 +265,12 @@ class LineFilter:
                         filtered = [line for line in filtered
                                     if line not in short_disjoint
                                     and line not in oxbow]
+                        filtered = MultiLineString(filtered)
                         return filtered
                     else:
                         filtered = [line for line in filtered
                                     if line not in short_disjoint]
+                        filtered = MultiLineString(filtered)
                         return filtered
 
         else:
@@ -281,7 +289,7 @@ class LineFilter:
                         if filtered[line_index].length < length:
                             short_dead_ends.append(filtered[line_index])
                     elif ends.count(filtered[line_index].coords[0]) > 1 \
-                            and ends.count(filtered[line_index].coords[-1])\
+                            and ends.count(filtered[line_index].coords[-1]) \
                             == 1:
                         if filtered[line_index].length < length:
                             short_dead_ends.append(filtered[line_index])
@@ -304,7 +312,7 @@ class LineFilter:
             if remove_ring:
                 rings = []
                 for line_index in range(len(filtered)):
-                    if filtered[line_index].coords[0]\
+                    if filtered[line_index].coords[0] \
                             == filtered[line_index].coords[-1]:
                         rings.append(filtered[line_index])
 
@@ -331,11 +339,13 @@ class LineFilter:
                                 if line not in short_disjoint
                                 and line not in rings
                                 and line not in oxbow]
+                    filtered = MultiLineString(filtered)
                     return filtered
                 else:
                     filtered = [line for line in filtered
                                 if line not in short_disjoint
                                 and line not in rings]
+                    filtered = MultiLineString(filtered)
                     return filtered
             else:
                 # Remove oxbow lakes
@@ -360,8 +370,10 @@ class LineFilter:
                     filtered = [line for line in filtered
                                 if line not in short_disjoint
                                 and line not in oxbow]
+                    filtered = MultiLineString(filtered)
                     return filtered
                 else:
                     filtered = [line for line in filtered
                                 if line not in short_disjoint]
+                    filtered = MultiLineString(filtered)
                     return filtered
