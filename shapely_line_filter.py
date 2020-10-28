@@ -105,9 +105,9 @@ class LineFilter:
         return filtered
 
     def remove_ring(self):
-        """Remove disjoint self-contained rings that share the same endpoint.
-        Disjoint rings are also disjoint lines, thus will be removed already
-        when using remove_disjoint() function, if their length are shorter than
+        """Remove self-contained rings that share the same endpoint. Note that
+        disjoint rings are also disjoint lines, thus will be removed already
+        when using remove_disjoint() method, if their length are shorter than
         the given length.
         Returns: a filtered network (a MultiLineString)."""
         rings = []

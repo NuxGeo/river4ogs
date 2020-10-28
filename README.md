@@ -1,17 +1,20 @@
 # Shapely_line_filter - an illustration
 
 ---
-This tool simplifies a network consists of polylines, for example, a river network.
+This tool filters a network consists of polylines, for example, a river network. Input and output are all [MultiLineString](https://shapely.readthedocs.io/en/latest/manual.html#MultiLineString). Source data like ESRI Shapefile and GeoJSON file can be filtered or simplified using this tool, however, the attribute table of the original data will not exist in your filtered data.
 
-__The tool does two things:__
-1. Remove short disconnected lines.
-2. For lines share the same endpoints, remove those which are not the shortest. 
+__The tool does four things:__
+1. Remove short dead-end lines.
+2. Remove short disjoint lines.
+3. Remove rings.
+4. Remove oxbow lakes.
 ---
 
 The tool requires the [Shapely](https://github.com/Toblerity/Shapely) Python package.
 
-## 1. Remove short disconnected lines
-Let's first create a [MultiLineString](https://shapely.readthedocs.io/en/latest/manual.html#MultiLineString) that needs to be simplified.
+## 1. Remove short dead-end lines
+Dead-end lines intersect only one other line.
+First, create a simple *MultiLineString* that needs to be filtered.
 
 
 ```python
@@ -19,46 +22,50 @@ from shapely.geometry import MultiLineString
 from pprint import pprint
 
 
-# original
-coords1 = [((0, 0), (2, 0)), ((1, 0), (1, 1)), ((1, 2), (3, 2)), ((3, 0), (3, 1))]
-mline1 = MultiLineString(coords1)
-pprint(list(mline1))
+# Original
+multi_line = MultiLineString(
+    [((-0.5, 1.5), (0.5, 1.5)), ((0.5, 1.5), (0.5, 2)), ((0.5, 1.5), (1.5, 1)), ((1.5, 1), (2, 0.5)), ((3, 1.5), (3, 2)),
+     ((1.5, 1), (2, 1.5), (2.5, 1), (2, 0.5)), ((2, 0.5), (2, -0.5)), ((0, 0), (0, 1), (0.5, 0), (0, 0))])
+pprint(list(multi_line))
 ```
 
-Our *MultiLineString* consists of four *LineStrings*. If your goal is to filter out the short disconnected line `((3, 0), (3, 1))`, which has a `length` of 1, you can use `remove_disconnected()` method from the class `LineFilter` within the *shapey_line_filter.py* module to achieve that. 
+    [<shapely.geometry.linestring.LineString object at 0x00000250DC0DB348>,
+     <shapely.geometry.linestring.LineString object at 0x00000250DBB5A588>,
+     <shapely.geometry.linestring.LineString object at 0x00000250DC0DB308>,
+     <shapely.geometry.linestring.LineString object at 0x00000250DC0DB3C8>,
+     <shapely.geometry.linestring.LineString object at 0x00000250DC0DB408>,
+     <shapely.geometry.linestring.LineString object at 0x00000250DC0DB448>,
+     <shapely.geometry.linestring.LineString object at 0x00000250DC0DB488>,
+     <shapely.geometry.linestring.LineString object at 0x00000250DC0DB4C8>]
+    
+
+Put *shapely_line_filter.py* in the project directory, here: 'C:\Jupyter', then import python files from this directory. We need to insert the project file path too.
 
 
 ```python
-# put shapely_line_filter.py in this Jupyter Notebook project directory, here: 'C:\Jupyter', 
-# then import python files from this directory
 import sys  
 sys.path.insert(0, 'C:\Jupyter')
 
 from shapely_line_filter import LineFilter 
 ```
 
+The original *MultiLineString* consists of 8 *LineStrings*. Two lines are dead-end lines: line `((-0.5, 1.5), (0.5, 1.5))` and line `((0.5, 1.5), (0.5, 2))`, which has a length of 1 and 0.5, separately. Use `remove_dead_end()` method to filter out the short dead-end line `((0.5, 1.5), (0.5, 2))`. The `remove_dead_end()` method can be found in the class `LineFilter` within the *shapey_line_filter.py* module. The method returns a MultiLineString too. We first use `update_length()` method to define a `length`, lines shorter than this will be filtered out. The `update_length()` method defines `length` for `remove_dead_end()`, `remove_disjoint()`, and `simplify_line()` methods. The length should be adjusted based on the data or map you are working with, and use a projected map to work in meaningful units like meters.
+
 
 ```python
-my_mline1 = LineFilter(mline1)
+my_multi_line = LineFilter(multi_line)
+my_multi_line.update_length(1)
+# Filtered
+multi_line_filtered1 = my_multi_line.remove_dead_end()
+print(type(multi_line_filtered1))
 ```
 
-The `remove_disconnected()` method will detect disconnected lines first --- those do not [intersect](https://shapely.readthedocs.io/en/latest/manual.html#object.intersects) others. Then we will specify that any lines that have a length less than 2 are short lines. These short disconnected lines will be removed. The length should be adjusted based on the data or map you are working with, and use a projected map to work in meaningful units like meters.
+    <class 'shapely.geometry.multilinestring.MultiLineString'>
+    
 
 
 ```python
-# filtered
-mline1_filtered = my_mline1.remove_disconnected(length=2)
-```
-
-
-```python
-# the filtered one is also a MultiLineString
-print(type(mline1_filtered))
-```
-
-
-```python
-# simple illustrations of a original and the filtered MultiLineString
+# Plot the original and the filtered network
 %matplotlib inline
 from matplotlib import pyplot
 from figures import SIZE, set_limits, plot_line, plot_bounds, color_issimple
@@ -78,22 +85,22 @@ def plot_lines(ax, ob):
 
 fig = pyplot.figure(1, figsize=SIZE, dpi=90)
 
-# original
+# Original
 ax = fig.add_subplot(121)
 
-plot_coords(ax, mline1)
-plot_bounds(ax, mline1)
-plot_lines(ax, mline1)
+plot_coords(ax, multi_line)
+plot_bounds(ax, multi_line)
+plot_lines(ax, multi_line)
 
 ax.set_title('a) original')
 set_limits(ax, -1, 4, -1, 3)
 
-# filtered
+# Filtered
 ax = fig.add_subplot(122)
 
-plot_coords(ax, mline1_filtered)
-plot_bounds(ax, mline1_filtered)
-plot_lines(ax, mline1_filtered)
+plot_coords(ax, multi_line_filtered1)
+plot_bounds(ax, multi_line_filtered1)
+plot_lines(ax, multi_line_filtered1)
 
 ax.set_title('b) filtered')
 set_limits(ax, -1, 4, -1, 3)
@@ -103,51 +110,44 @@ pyplot.show()
 
 
     
-![png](output_9_0.png)
+![png](output_7_0.png)
     
 
 
 __Note__: the figures module simpily modifies the size of the Matplotlib figure, if you really need this module, it locates here: https://github.com/Toblerity/Shapely/blob/master/docs/code/figures.py, and you may put it in your project directory as well, here: 'C:\Jupyter'.
 
-## 2. For lines share the same endpoints, remove those which are not the shortest
-This tool can also simplify a network by removing some loops. For example, oxbow lakes formed at the meanders of a river.
+## 2. Remove short disjoint lines
+[Disjoint](https://shapely.readthedocs.io/en/latest/manual.html#object.disjoint) lines are lines that their boundary and interior do not intersect at all with those of the other.
 
 
 ```python
-# original
-mline2 = MultiLineString([((0, 0), (2, 0)), ((0, 0), (1, 1), (2, 1), (2, 0)), ((3, 1), (3, 2))])
-```
-
-The `remove_oxbow()` method will detect lines share the same endpoints first, then remove all the longer lines and remain the shortest. For example, line `((0, 0), (2, 0))` and line `((0, 0), (1, 1), (2, 1), (2, 0))` both share the same endpoints `(0, 0)` and `(2, 0)`. The first line has a length of 2, while the second line (seems like an oxbow lake) has a length of 3.4, so the second line, which is longer, will be removed if using `remove_oxbow()` method. This method is inside the class `LineFilter`, which we have already imported. 
-
-
-```python
-my_mline2 = LineFilter(mline2)
-# filtered
-mline2_filtered = my_mline2.remove_oxbow()  # a MultiLineString 
+my_multi_line = LineFilter(multi_line)
+my_multi_line.update_length(1) # disjoint lines shorter than 1 will be filtered out
+# Filtered
+multi_line_filtered2 = my_multi_line.remove_disjoint()
 ```
 
 
 ```python
-# simple illustrations of a original and the filtered MultiLineString
+# Plot the original and the filtered network
 fig = pyplot.figure(1, figsize=SIZE, dpi=90)
 
-# original
+# Original
 ax = fig.add_subplot(121)
 
-plot_coords(ax, mline2)
-plot_bounds(ax, mline2)
-plot_lines(ax, mline2)
+plot_coords(ax, multi_line)
+plot_bounds(ax, multi_line)
+plot_lines(ax, multi_line)
 
 ax.set_title('a) original')
 set_limits(ax, -1, 4, -1, 3)
 
-# filtered
+# Filtered
 ax = fig.add_subplot(122)
 
-plot_coords(ax, mline2_filtered)
-plot_bounds(ax, mline2_filtered)
-plot_lines(ax, mline2_filtered)
+plot_coords(ax, multi_line_filtered2)
+plot_bounds(ax, multi_line_filtered2)
+plot_lines(ax, multi_line_filtered2)
 
 ax.set_title('b) filtered')
 set_limits(ax, -1, 4, -1, 3)
@@ -157,80 +157,133 @@ pyplot.show()
 
 
     
-![png](output_15_0.png)
+![png](output_11_0.png)
     
 
 
-## 3. Filtering using both methods (an application)
-If you want to apply both filters to your network, we do have a method `remove_disconnected_and_oxbow()` in class `LineFilter` that will do the job.
+## 3. Remove rings
+Self-contained rings share the same endpoint. Note that disjoint rings are also disjoint lines, thus will be removed already when using `remove_disjoint()` method, if their length are shorter than the given `length`.
 
 
 ```python
-import fiona
-import time
-from shapely.geometry import shape, mapping, MultiLineString
-from shapely.ops import unary_union, linemerge
-from shapely_line_filter import LineFilter
+my_multi_line = LineFilter(multi_line)
+# Filtered
+multi_line_filtered3 = my_multi_line.remove_ring()
 ```
 
-The source data could be either a ESRI Shapefile or a GeoJSON file, here we use the projected GEOJSON file consists of rivers and streams (line element) in Liechtenstein obtained from OpenStreetMap as an example. Put the source file *liechtenstein_river_stream_proj.geojson* into your working directory, here: 'C:\Jupyter'. You should put the *shapely_line_filter.py* in your wokring directory too. __Note__: the attribute table of the original data will not exist in your filtered data.
-
 
 ```python
-# read the source file with fiona and get the source driver, crs, and schema
-with fiona.open("liechtenstein_river_stream_proj.geojson") as source:
-    source_driver = source.driver
-    source_crs = source.crs
-    source_schema = source.schema
+# Plot the original and the filtered network
+fig = pyplot.figure(1, figsize=SIZE, dpi=90)
 
-    mline = [shape(feature['geometry']) for feature in source]  # returns a new, independent line geometry with coordinates
-    mline_union = unary_union(mline)  # union LineStrings and MultiLineStrings into a MultiLineString (which also split lines at their intersections)
-    mline_merge = linemerge(mline_union)  # merge all contiguous lines, return a MultiLineString
-
-    start_time = time.time()  # start recording the processing time
-    # using shapely_line_filter
-    my_mline = LineFilter(mline_merge)
-    # remove both short disconnected lines (no longer than 4 km) and oxbow lakes
-    mline_filtered = my_mline.remove_disconnected_and_oxbow(length=4000)  # default length=4000, in meter
-    print(f"Filtering lines lasted {round(time.time() - start_time, 0)} "
-          f"seconds.")
-    print(f"Number of lines before filtering: {len(mline_merge)}")
-    print(f"Number of lines after filtering: {len(mline_filtered)}")
-```
-
-    Filtering lines lasted 11.0 seconds.
-    Number of lines before filtering: 402
-    Number of lines after filtering: 368
-    
-
-
-```python
-# plots (parts) of the original and the filtered network
-fig = pyplot.figure(1, figsize=(10, 6), dpi=90)
-
-# original
+# Original
 ax = fig.add_subplot(121)
 
-plot_lines(ax, mline_merge)
+plot_coords(ax, multi_line)
+plot_bounds(ax, multi_line)
+plot_lines(ax, multi_line)
 
 ax.set_title('a) original')
-ax.set_xlim(538600, 539800)
-ax.set_xticks(range(538600, 539800+1, 300))
-ax.set_ylim(5220600, 5221600)
-ax.set_yticks(range(5220600, 5221600+1, 200))
-ax.set_aspect("equal")
+set_limits(ax, -1, 4, -1, 3)
 
-# filtered
+# Filtered
 ax = fig.add_subplot(122)
 
-plot_lines(ax, mline_filtered)
+plot_coords(ax, multi_line_filtered3)
+plot_bounds(ax, multi_line_filtered3)
+plot_lines(ax, multi_line_filtered3)
 
 ax.set_title('b) filtered')
-ax.set_xlim(538600, 539800)
-ax.set_xticks(range(538600, 539800+1, 300))
-ax.set_ylim(5220600, 5221600)
-ax.set_yticks(range(5220600, 5221600+1, 200))
-ax.set_aspect("equal")
+set_limits(ax, -1, 4, -1, 3)
+
+pyplot.show()
+```
+
+
+    
+![png](output_14_0.png)
+    
+
+
+## 4. Remove oxbow lakes
+Oxbow lake is U-shaped bend from a river or stream, which is cut off from the main stream and still connected to the main stream at its both ends. All lines that share the same ends (start- and end point) will be compared with each other once, filter out longer lines and then return the shortest line. Oxbow lakes that connected at only one end or disconnected to the main stream are defined as dead-end and disjoint lines, separately.
+
+
+```python
+my_multi_line = LineFilter(multi_line)
+# Filtered
+multi_line_filtered4 = my_multi_line.remove_oxbow()
+```
+
+
+```python
+# Plot the original and the filtered network
+fig = pyplot.figure(1, figsize=SIZE, dpi=90)
+
+# Original
+ax = fig.add_subplot(121)
+
+plot_coords(ax, multi_line)
+plot_bounds(ax, multi_line)
+plot_lines(ax, multi_line)
+
+ax.set_title('a) original')
+set_limits(ax, -1, 4, -1, 3)
+
+# Filtered
+ax = fig.add_subplot(122)
+
+plot_coords(ax, multi_line_filtered4)
+plot_bounds(ax, multi_line_filtered4)
+plot_lines(ax, multi_line_filtered4)
+
+ax.set_title('b) filtered')
+set_limits(ax, -1, 4, -1, 3)
+
+pyplot.show()
+```
+
+
+    
+![png](output_17_0.png)
+    
+
+
+## 5. Filtering using all methods
+By default, the `simplify_line()` method will execute the above mentioned methods in this order: `remove_dead_end()`, `remove_disjoint()`, `remove_ring()`, and `remove_oxbow()`. `remove_ring()` or `remove_oxbow()` will not be executed if `remove_ring=False` or `remove_oxbow=False`. By default, they are `True`.
+
+
+```python
+my_multi_line = LineFilter(multi_line)
+my_multi_line.update_length(1)
+# Filtered
+multi_line_filtered = my_multi_line.simplify_line(remove_ring=True, remove_oxbow=True)
+```
+
+
+```python
+# Plot the original and the filtered network
+fig = pyplot.figure(1, figsize=SIZE, dpi=90)
+
+# Original
+ax = fig.add_subplot(121)
+
+plot_coords(ax, multi_line)
+plot_bounds(ax, multi_line)
+plot_lines(ax, multi_line)
+
+ax.set_title('a) original')
+set_limits(ax, -1, 4, -1, 3)
+
+# Filtered
+ax = fig.add_subplot(122)
+
+plot_coords(ax, multi_line_filtered)
+plot_bounds(ax, multi_line_filtered)
+plot_lines(ax, multi_line_filtered)
+
+ax.set_title('b) filtered')
+set_limits(ax, -1, 4, -1, 3)
 
 pyplot.show()
 ```
@@ -241,16 +294,101 @@ pyplot.show()
     
 
 
-Note that the two short disconnected lines and the oxbow lake in the middle were removed.
+## 6. An application
+Liechtenstein river and stream network (see folder Liechtenstein) is used here as an example to see how the tool works. The source data could be either a ESRI Shapefile or a GeoJSON file. The projected GeoJSON file consists of rivers and streams (line element) in Liechtenstein obtained from OpenStreetMap. Put the source file *liechtenstein_river_stream_proj.geojson* into your working directory, here: 'C:\Jupyter'. You should put the *shapely_line_filter.py* in your wokring directory too.
 
 
 ```python
-# write shapely geometries to shapefiles in your working directory
-with fiona.open('200928_river4ogs_Liechtenstein_river_stream_v3.shp', 'w',
+import fiona
+import time
+from shapely.geometry import shape, mapping, MultiLineString
+from shapely.ops import unary_union, linemerge
+from shapely_line_filter import LineFilter
+```
+
+
+```python
+# Read the source file with fiona and get the source driver, crs, and schema
+with fiona.open("liechtenstein_river_stream_proj.geojson") as source:
+    source_driver = source.driver
+    source_crs = source.crs
+    source_schema = source.schema
+
+    multi_line = [shape(feature['geometry']) for feature in source]  # returns a new, independent line geometry with coordinates
+    multi_line_union = unary_union(multi_line)  # union LineStrings and MultiLineStrings into a MultiLineString (which also split lines at their intersections)
+    multi_line_merge = linemerge(multi_line_union)  # merge all contiguous lines, return a MultiLineString
+
+    start_time = time.time()  # start recording the processing time
+    # Using shapely_line_filter
+    my_multi_line = LineFilter(multi_line_merge)
+    # Define short (dead-end and disjoint) lines are those not longer than 1 km
+    my_multi_line.update_length(1000)
+    multi_line_filtered = my_multi_line.simplify_line()
+    print(f"Filtering lines lasted {round(time.time() - start_time, 0)} "
+          f"seconds.")
+    print(f"Number of lines before filtering: {len(multi_line_merge)}")
+    print(f"Number of lines after filtering: {len(multi_line_filtered)}")
+```
+
+    Filtering lines lasted 3.0 seconds.
+    Number of lines before filtering: 402
+    Number of lines after filtering: 62
+    
+
+
+```python
+# Plot the original and the filtered network
+from math import sqrt
+
+def plot_lines(ax, ob):
+    color = color_issimple(ob)
+    for line in ob:
+        plot_line(ax, line, color=color, linewidth=1, alpha=0.7, zorder=2)
+
+GM = (sqrt(5)-1.0)/2.0
+W = 8.0
+H = W/GM
+SIZE = (W, H)
+
+fig = pyplot.figure(1, figsize=(SIZE), dpi=90)
+
+# Original
+ax = fig.add_subplot(121)
+plot_lines(ax, multi_line_merge)
+ax.set_title('a) original')
+ax.set_xlim(533200, 549200)
+ax.set_xticks(range(533200, 549200+1, 4000))
+ax.set_ylim(5207200, 5231200)
+ax.set_yticks(range(5207200, 5231200+1, 4000))
+ax.set_aspect("equal")
+
+# Filtered
+ax = fig.add_subplot(122)
+plot_lines(ax, multi_line_filtered)
+ax.set_title('b) filtered')
+ax.set_xlim(533200, 549200)
+ax.set_xticks(range(533200, 549200+1, 4000))
+ax.set_ylim(5207200, 5231200)
+ax.set_yticks(range(5207200, 5231200+1, 4000))
+ax.set_aspect("equal")
+
+pyplot.show()
+```
+
+
+    
+![png](output_24_0.png)
+    
+
+
+
+```python
+# Write shapely geometries to shapefiles in your working directory
+with fiona.open('201028_river4ogs_Liechtenstein_river_stream_v1.shp', 'w',
                 driver='ESRI Shapefile',
                 crs=source_crs,
                 schema=source_schema) as c:
-    for line in mline_filtered:
+    for line in multi_line_filtered:
         c.write(dict(geometry=mapping(line),
                      properties=source_schema['properties']))
 ```
