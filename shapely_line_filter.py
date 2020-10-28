@@ -7,15 +7,21 @@ class LineFilter:
     """A simple attempt to simplify or filter a MultiLineString."""
 
     def __init__(self, multi_line):
-        """Initialize multi_line attribute."""
+        """Initialize attributes to the filter."""
         self.multi_line = multi_line
+        self.length = 1000
 
-    def remove_dead_end(self, length=4000, is_simplest=True, level=None):
-        """Remove short dead end lines. Dead end lines intersect only one other
-        line.
+    def update_length(self, length):
+        """Set the length to the given value.
         Parameter:
             length (int) - lines shorter than this length will be removed,
-                default is 4000 (e.g., in meter).
+                default is 1000 (e.g., in meter)."""
+        self.length = length
+
+    def remove_dead_end(self, is_simplest=True, level=None):
+        """Remove short dead-end lines. Dead end lines intersect only one other
+        line.
+        Parameter:
             is_simplest (bool) - if True, network will return its simplest form.
                 if False, level of simplification should be given.
             level (int) - level of simplification (how many times the network
@@ -30,29 +36,27 @@ class LineFilter:
                 ends.append(start)
                 ends.append(end)
 
-            # pack dead ends lines with length shorter than the given length
+            # pack dead-end lines with length shorter than the given length
             short_dead_ends = []
             for line_index in range(len(filtered)):
                 if ends.count(filtered[line_index].coords[0]) == 1 \
                         and ends.count(filtered[line_index].coords[-1]) > 1:
-                    if filtered[line_index].length < length:
+                    if filtered[line_index].length < self.length:
                         short_dead_ends.append(filtered[line_index])
                 elif ends.count(filtered[line_index].coords[0]) > 1 \
                         and ends.count(filtered[line_index].coords[-1]) == 1:
-                    if filtered[line_index].length < length:
+                    if filtered[line_index].length < self.length:
                         short_dead_ends.append(filtered[line_index])
 
-                # filter out short lines
+            # filter out short lines
             filtered = [line for line in filtered
                         if line not in short_dead_ends]
             filtered = unary_union(filtered)
             filtered = linemerge(filtered)
             # if short_dead_ends is empty
             if not short_dead_ends:
-                filtered = MultiLineString(filtered)
-                return filtered
-            else:
-                return None
+                break
+            filtered = MultiLineString(filtered)
         else:
             for level_index in range(level):
                 ends = []
@@ -65,26 +69,23 @@ class LineFilter:
                 for line_index in range(len(filtered)):
                     if ends.count(filtered[line_index].coords[0]) == 1 \
                             and ends.count(filtered[line_index].coords[-1]) > 1:
-                        if filtered[line_index].length < length:
+                        if filtered[line_index].length < self.length:
                             short_dead_ends.append(filtered[line_index])
                     elif ends.count(filtered[line_index].coords[0]) > 1 \
                             and ends.count(filtered[line_index].coords[-1]) \
                             == 1:
-                        if filtered[line_index].length < length:
+                        if filtered[line_index].length < self.length:
                             short_dead_ends.append(filtered[line_index])
 
                 filtered = [line for line in filtered
                             if line not in short_dead_ends]
                 filtered = unary_union(filtered)
                 filtered = linemerge(filtered)
-            return filtered
+        return filtered
 
-    def remove_disjoint(self, length=4000):
+    def remove_disjoint(self):
         """Remove short disjoint lines that their boundary and interior do not
         intersect at all with those of the other.
-        Parameter:
-            length (int) - lines shorter than this length will be removed,
-                default is 4000 (e.g., in meter).
         Returns: a filtered network (a MultiLineString)."""
         # pack lines that intersecting each other
         # consider the order
@@ -95,7 +96,7 @@ class LineFilter:
         # pack disjoint lines with length shorter than the given length
         short_disjoint = [line for line in self.multi_line if
                           line not in intersected
-                          and line.length < length]
+                          and line.length < self.length]
 
         # filter out short disjoint lines
         filtered = [line for line in self.multi_line
@@ -149,13 +150,11 @@ class LineFilter:
         filtered = MultiLineString(filtered)
         return filtered
 
-    def simplify_line(self, length=4000, is_simplest=True, level=None,
+    def simplify_line(self, is_simplest=True, level=None,
                       remove_ring=True, remove_oxbow=True):
-        """Simplify line geometry by removing short dead end, short disjoint
+        """Simplify line geometry by removing short dead-end, short disjoint
          lines, disjoint rings, and oxbow lakes.
         Parameters:
-            length (int) - lines shorter than this length will be removed,
-                default is 4000 (e.g., in meter).
             is_simplest (bool) - if True, network will return its simplest form.
                 if False, level of simplification should be given.
             level (int) - level of simplification (how many times the network
@@ -165,7 +164,7 @@ class LineFilter:
             remove_oxbow (bool) - if True, remove U-shaped bends (oxbow lakes)
                 from river meanders, return the shortest channel.
         Returns: a filtered network (a MultiLineString)."""
-        # Remove short dead end lines
+        # Remove short dead-end lines
         filtered = self.multi_line
         while is_simplest:
             # pack the end point (start and end) coordinates of each line
@@ -175,106 +174,29 @@ class LineFilter:
                 ends.append(start)
                 ends.append(end)
 
-            # pack dead end lines with length shorter than the given length
+            # pack dead-end lines with length shorter than the given length
             short_dead_ends = []
             for line_index in range(len(filtered)):
                 if ends.count(filtered[line_index].coords[0]) == 1 \
                         and ends.count(filtered[line_index].coords[-1]) > 1:
-                    if filtered[line_index].length < length:
+                    if filtered[line_index].length < self.length:
                         short_dead_ends.append(filtered[line_index])
                 elif ends.count(filtered[line_index].coords[0]) > 1 \
                         and ends.count(filtered[line_index].coords[-1]) == 1:
-                    if filtered[line_index].length < length:
+                    if filtered[line_index].length < self.length:
                         short_dead_ends.append(filtered[line_index])
 
-            # filter out short dead end lines
+            # filter out short dead-end lines
             filtered = [line for line in filtered
                         if line not in short_dead_ends]
             filtered = unary_union(filtered)
             filtered = linemerge(filtered)
 
             if not short_dead_ends:
-                # Remove short disjoint lines
-                result = itertools.permutations(filtered, 2)
-                intersected = [line1 for (line1, line2) in result
-                               if line1.intersects(line2)]
-
-                short_disjoint = [line for line in filtered if
-                                  line not in intersected
-                                  and line.length < length]
-
-                # Remove ring
-                if remove_ring:
-                    rings = []
-                    for line_index in range(len(filtered)):
-                        if filtered[line_index].coords[0] \
-                                == filtered[line_index].coords[-1]:
-                            rings.append(filtered[line_index])
-
-                    # Remove oxbow lakes
-                    if remove_oxbow:
-                        oxbow = []
-                        for i in range(len(filtered)):
-                            for j in range(i + 1, len(filtered)):
-                                start_i, *_, end_i = filtered[i].coords
-                                start_j, *_, end_j = filtered[j].coords
-                                ends_i = (start_i, end_i)
-                                ends_j = (start_j, end_j)
-                                # consider line direction
-                                ends_j_reverse = (end_j, start_j)
-                                if ends_i == ends_j or ends_i == ends_j_reverse:
-                                    # check if they share the same ends, if so,
-                                    # append the longer one to the new list
-                                    if filtered[i].length > filtered[j].length:
-                                        oxbow.append(filtered[i])
-                                    else:
-                                        oxbow.append(filtered[j])
-
-                        filtered = [line for line in filtered
-                                    if line not in short_disjoint
-                                    and line not in rings
-                                    and line not in oxbow]
-                        filtered = MultiLineString(filtered)
-                        return filtered
-                    else:
-                        filtered = [line for line in filtered
-                                    if line not in short_disjoint
-                                    and line not in rings]
-                        filtered = MultiLineString(filtered)
-                        return filtered
-                else:
-                    # Remove oxbow lakes
-                    if remove_oxbow:
-                        oxbow = []
-                        for i in range(len(filtered)):
-                            for j in range(i + 1, len(filtered)):
-                                start_i, *_, end_i = filtered[i].coords
-                                start_j, *_, end_j = filtered[j].coords
-                                ends_i = (start_i, end_i)
-                                ends_j = (start_j, end_j)
-                                # consider line direction
-                                ends_j_reverse = (end_j, start_j)
-                                if ends_i == ends_j or ends_i == ends_j_reverse:
-                                    # check if they share the same ends, if so,
-                                    # append the longer one to the new list
-                                    if filtered[i].length > filtered[j].length:
-                                        oxbow.append(filtered[i])
-                                    else:
-                                        oxbow.append(filtered[j])
-
-                        filtered = [line for line in filtered
-                                    if line not in short_disjoint
-                                    and line not in oxbow]
-                        filtered = MultiLineString(filtered)
-                        return filtered
-                    else:
-                        filtered = [line for line in filtered
-                                    if line not in short_disjoint]
-                        filtered = MultiLineString(filtered)
-                        return filtered
+                break
 
         else:
-            # Remove dead end lines
+            # Remove dead-end lines
             for level_index in range(level):
                 ends = []
                 for line_index in range(len(filtered)):
@@ -286,12 +208,12 @@ class LineFilter:
                 for line_index in range(len(filtered)):
                     if ends.count(filtered[line_index].coords[0]) == 1 \
                             and ends.count(filtered[line_index].coords[-1]) > 1:
-                        if filtered[line_index].length < length:
+                        if filtered[line_index].length < self.length:
                             short_dead_ends.append(filtered[line_index])
                     elif ends.count(filtered[line_index].coords[0]) > 1 \
                             and ends.count(filtered[line_index].coords[-1]) \
                             == 1:
-                        if filtered[line_index].length < length:
+                        if filtered[line_index].length < self.length:
                             short_dead_ends.append(filtered[line_index])
 
                 filtered = [line for line in filtered
@@ -299,81 +221,78 @@ class LineFilter:
                 filtered = unary_union(filtered)
                 filtered = linemerge(filtered)
 
-            # Remove short disjoint lines
-            result = itertools.permutations(filtered, 2)
-            intersected = [line1 for (line1, line2) in result
-                           if line1.intersects(line2)]
+        # Remove short disjoint lines
+        result = itertools.permutations(filtered, 2)
+        intersected = [line1 for (line1, line2) in result
+                       if line1.intersects(line2)]
 
-            short_disjoint = [line for line in filtered if
-                              line not in intersected
-                              and line.length < length]
+        short_disjoint = [line for line in filtered if
+                          line not in intersected
+                          and line.length < self.length]
 
-            # Remove ring
-            if remove_ring:
-                rings = []
-                for line_index in range(len(filtered)):
-                    if filtered[line_index].coords[0] \
-                            == filtered[line_index].coords[-1]:
-                        rings.append(filtered[line_index])
+        # Remove ring
+        if remove_ring:
+            rings = []
+            for line_index in range(len(filtered)):
+                if filtered[line_index].coords[0] \
+                        == filtered[line_index].coords[-1]:
+                    rings.append(filtered[line_index])
 
-                # Remove oxbow lakes
-                if remove_oxbow:
-                    oxbow = []
-                    for i in range(len(filtered)):
-                        for j in range(i + 1, len(filtered)):
-                            start_i, *_, end_i = filtered[i].coords
-                            start_j, *_, end_j = filtered[j].coords
-                            ends_i = (start_i, end_i)
-                            ends_j = (start_j, end_j)
-                            ends_j_reverse = (
-                                end_j, start_j)  # consider line direction
-                            if ends_i == ends_j or ends_i == ends_j_reverse:
-                                # check if they share the same ends
-                                # if so, append the longer one to the new list
-                                if filtered[i].length > filtered[j].length:
-                                    oxbow.append(filtered[i])
-                                else:
-                                    oxbow.append(filtered[j])
+            # Remove oxbow lakes
+            if remove_oxbow:
+                oxbow = []
+                for i in range(len(filtered)):
+                    for j in range(i + 1, len(filtered)):
+                        start_i, *_, end_i = filtered[i].coords
+                        start_j, *_, end_j = filtered[j].coords
+                        ends_i = (start_i, end_i)
+                        ends_j = (start_j, end_j)
+                        ends_j_reverse = (
+                            end_j, start_j)  # consider line direction
+                        if ends_i == ends_j or ends_i == ends_j_reverse:
+                            # check if they share the same ends
+                            # if so, append the longer one to the new list
+                            if filtered[i].length > filtered[j].length:
+                                oxbow.append(filtered[i])
+                            else:
+                                oxbow.append(filtered[j])
 
-                    filtered = [line for line in filtered
-                                if line not in short_disjoint
-                                and line not in rings
-                                and line not in oxbow]
-                    filtered = MultiLineString(filtered)
-                    return filtered
-                else:
-                    filtered = [line for line in filtered
-                                if line not in short_disjoint
-                                and line not in rings]
-                    filtered = MultiLineString(filtered)
-                    return filtered
+                filtered = [line for line in filtered
+                            if line not in short_disjoint
+                            and line not in rings
+                            and line not in oxbow]
+                filtered = MultiLineString(filtered)
             else:
-                # Remove oxbow lakes
-                if remove_oxbow:
-                    oxbow = []
-                    for i in range(len(filtered)):
-                        for j in range(i + 1, len(filtered)):
-                            start_i, *_, end_i = filtered[i].coords
-                            start_j, *_, end_j = filtered[j].coords
-                            ends_i = (start_i, end_i)
-                            ends_j = (start_j, end_j)
-                            ends_j_reverse = (
-                                end_j, start_j)  # consider line direction
-                            if ends_i == ends_j or ends_i == ends_j_reverse:
-                                # check if they share the same ends
-                                # if so, append the longer one to the new list
-                                if filtered[i].length > filtered[j].length:
-                                    oxbow.append(filtered[i])
-                                else:
-                                    oxbow.append(filtered[j])
+                filtered = [line for line in filtered
+                            if line not in short_disjoint
+                            and line not in rings]
+                filtered = MultiLineString(filtered)
+        else:
+            # Remove oxbow lakes
+            if remove_oxbow:
+                oxbow = []
+                for i in range(len(filtered)):
+                    for j in range(i + 1, len(filtered)):
+                        start_i, *_, end_i = filtered[i].coords
+                        start_j, *_, end_j = filtered[j].coords
+                        ends_i = (start_i, end_i)
+                        ends_j = (start_j, end_j)
+                        ends_j_reverse = (
+                            end_j, start_j)  # consider line direction
+                        if ends_i == ends_j or ends_i == ends_j_reverse:
+                            # check if they share the same ends
+                            # if so, append the longer one to the new list
+                            if filtered[i].length > filtered[j].length:
+                                oxbow.append(filtered[i])
+                            else:
+                                oxbow.append(filtered[j])
 
-                    filtered = [line for line in filtered
-                                if line not in short_disjoint
-                                and line not in oxbow]
-                    filtered = MultiLineString(filtered)
-                    return filtered
-                else:
-                    filtered = [line for line in filtered
-                                if line not in short_disjoint]
-                    filtered = MultiLineString(filtered)
-                    return filtered
+                filtered = [line for line in filtered
+                            if line not in short_disjoint
+                            and line not in oxbow]
+                filtered = MultiLineString(filtered)
+            else:
+                filtered = [line for line in filtered
+                            if line not in short_disjoint]
+                filtered = MultiLineString(filtered)
+        return filtered
