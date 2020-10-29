@@ -16,7 +16,7 @@ __The tool does four things:__
 ---
 
 ## License & copyright
-© Yan Zhou
+(c) Yan Zhou
 
 ---
 
