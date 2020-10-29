@@ -1,7 +1,7 @@
-# Shapely_line_filter - an illustration
+# shapely_filter
 
 ---
-This tool filters a network consists of polylines, for example, a river network. Input and output are all *[MultiLineString](https://shapely.readthedocs.io/en/latest/manual.html#MultiLineString)*. Source data like *ESRI Shapefile* and *GeoJSON file* can be filtered or simplified using this tool, however, the attribute table of the original data will not exist in your filtered data.
+This tool filters a network consists of polylines, for example, a river network. Input and output are all *[MultiLineString](https://shapely.readthedocs.io/en/latest/manual.html#MultiLineString)*. Source data like *ESRI Shapefile* and *GeoJSON file* can be filtered or simplified using this tool, however, the attribute table of the original data will not exist in your filtered data. The tool requires the [Shapely](https://github.com/Toblerity/Shapely) Python package.
 
 __The tool does four things:__
 1. Remove short dead-end lines.
@@ -10,7 +10,20 @@ __The tool does four things:__
 4. Remove oxbow lakes.
 ---
 
-The tool requires the [Shapely](https://github.com/Toblerity/Shapely) Python package.
+## Contributors
+- Yan Zhou yan.zhou@ufz.de
+
+---
+
+## License & copyright
+© Yan Zhou
+
+---
+
+## Acknowledegments
+Thanks to the team of [Hydroinformatics](https://www.ufz.de/index.php?en=40171) for improving the code and the discussions.
+
+---
 
 ## 1. Remove short dead-end lines
 Dead-end lines *[intersect](https://shapely.readthedocs.io/en/latest/manual.html#object.intersects)* only one other line.
@@ -24,32 +37,23 @@ from pprint import pprint
 
 # Original
 multi_line = MultiLineString(
-    [((-0.5, 1.5), (0.5, 1.5)), ((0.5, 1.5), (0.5, 2)), ((0.5, 1.5), (1.5, 1)), ((1.5, 1), (2, 0.5)), ((3, 1.5), (3, 2)),
-     ((1.5, 1), (2, 1.5), (2.5, 1), (2, 0.5)), ((2, 0.5), (2, -0.5)), ((0, 0), (0, 1), (0.5, 0), (0, 0))])
+    [((-0.5, 1.5), (0.5, 1.5)), ((0.5, 1.5), (0.5, 2)), ((0.5, 1.5), (1.5, 1)), ((1.5, 1), (2, 0.5)),
+     ((3, 1.5), (3, 2)), ((1.5, 1), (2, 1.5), (2.5, 1), (2, 0.5)), ((2, 0.5), (2, -0.5)),
+     ((0, 0), (0, 1), (0.5, 0), (0, 0))])
 pprint(list(multi_line))
 ```
 
-    [<shapely.geometry.linestring.LineString object at 0x000002443BB082C8>,
-     <shapely.geometry.linestring.LineString object at 0x000002443DBEBFC8>,
-     <shapely.geometry.linestring.LineString object at 0x000002443DBEC0C8>,
-     <shapely.geometry.linestring.LineString object at 0x000002443DBEC108>,
-     <shapely.geometry.linestring.LineString object at 0x000002443DBEC148>,
-     <shapely.geometry.linestring.LineString object at 0x000002443DBEC188>,
-     <shapely.geometry.linestring.LineString object at 0x000002443DBEC1C8>,
-     <shapely.geometry.linestring.LineString object at 0x000002443DBEC208>]
-    
-
-Put *shapely_line_filter.py* in the project directory, here: 'C:\Jupyter', then import this python file from this directory. We need to insert the project file path too.
+Put *shapely_filter.py* in the project directory, here: 'C:\Jupyter', then import this python file from this directory. We need to insert the project file path too.
 
 
 ```python
 import sys  
 sys.path.insert(0, 'C:\Jupyter')
 
-from shapely_line_filter import LineFilter 
+from shapely_filter import LineFilter 
 ```
 
-The original MultiLineString consists of 8 *LineStrings*. Three lines are dead-end lines: line `((-0.5, 1.5), (0.5, 1.5))`, line `((0.5, 1.5), (0.5, 2))`, and line `((2, 0.5), (2, -0.5))`, which has a length of 1, 0.5, and 1, separately. Use `remove_dead_end()` method to filter out the short dead-end line `((0.5, 1.5), (0.5, 2))`, which has a length shorter than 1. The `remove_dead_end()` method can be found in the class `LineFilter` within the *shapey_line_filter.py* module. The method returns a MultiLineString too. We first use `update_length()` method to define a `length`, lines shorter than this will be filtered out. The `update_length()` method defines `length` for `remove_dead_end()`, `remove_disjoint()`, and `simplify_line()` methods. The length should be adjusted based on the data or map you are working with, and __use a projected map to work in meaningful units like meters__.
+The original MultiLineString consists of 8 *LineStrings*. Three lines are dead-end lines: line `((-0.5, 1.5), (0.5, 1.5))`, line `((0.5, 1.5), (0.5, 2))`, and line `((2, 0.5), (2, -0.5))`, which has a length of 1, 0.5, and 1, separately. Use `remove_dead_end()` method to filter out the short dead-end line `((0.5, 1.5), (0.5, 2))`, which has a length shorter than 1. The `remove_dead_end()` method can be found in the class `LineFilter` within the *shapey_filter.py* module. The method returns a MultiLineString too. We first use `update_length()` method to define a `length`, lines shorter than this will be filtered out. The `update_length()` method defines `length` for `remove_dead_end()`, `remove_disjoint()`, and `simplify_line()` methods. The length should be adjusted based on the data or map you are working with, and __use a projected map to work in meaningful units like meters__.
 
 
 ```python
@@ -60,9 +64,6 @@ my_multi_line.update_length(1)
 multi_line_filtered1 = my_multi_line.remove_dead_end()
 print(type(multi_line_filtered1))
 ```
-
-    <class 'shapely.geometry.multilinestring.MultiLineString'>
-    
 
 
 ```python
@@ -300,7 +301,7 @@ pyplot.show()
 
 
 ## 6. An application
-Liechtenstein river and stream network (see folder Liechtenstein) is used here as an example to see how the tool works. The source data could be either a ESRI Shapefile or a GeoJSON file. The projected GeoJSON file consists of rivers and streams (line element) in Liechtenstein obtained from OpenStreetMap. Put the source file *liechtenstein_river_stream_proj.geojson* into your working directory. You should put the *shapely_line_filter.py* in your wokring directory too.
+Liechtenstein river and stream network (see folder Liechtenstein) is used here as an example to see how the tool works. The source data could be either a ESRI Shapefile or a GeoJSON file. The projected GeoJSON file consists of rivers and streams (line element) in Liechtenstein obtained from OpenStreetMap. Put the source file *liechtenstein_river_stream_proj.geojson* into your working directory. You should put the *shapely_filter.py* in your wokring directory too.
 
 
 ```python
@@ -308,7 +309,7 @@ import fiona
 import time
 from shapely.geometry import shape, mapping, MultiLineString
 from shapely.ops import unary_union, linemerge
-from shapely_line_filter import LineFilter
+from shapely_filter import LineFilter
 ```
 
 
