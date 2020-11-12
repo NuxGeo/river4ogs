@@ -101,7 +101,7 @@ class LineFilter:
         # filter out short disjoint lines
         filtered = [line for line in self.multi_line
                     if line not in short_disjoint]
-        filtered = MultiLineString(filtered)
+        filtered = linemerge(filtered)
         return filtered
 
     def remove_ring(self):
@@ -119,7 +119,7 @@ class LineFilter:
         # filter out rings
         filtered = [line for line in self.multi_line
                     if line not in rings]
-        filtered = MultiLineString(filtered)
+        filtered = linemerge(filtered)
         return filtered
 
     def remove_oxbow(self):
@@ -147,7 +147,7 @@ class LineFilter:
 
         # filter out all oxbow lakes
         filtered = [line for line in self.multi_line if line not in oxbow]
-        filtered = MultiLineString(filtered)
+        filtered = linemerge(filtered)
         return filtered
 
     def simplify_line(self, is_simplest=True, level=None,
@@ -261,12 +261,12 @@ class LineFilter:
                             if line not in short_disjoint
                             and line not in rings
                             and line not in oxbow]
-                filtered = MultiLineString(filtered)
+                filtered = linemerge(filtered)
             else:
                 filtered = [line for line in filtered
                             if line not in short_disjoint
                             and line not in rings]
-                filtered = MultiLineString(filtered)
+                filtered = linemerge(filtered)
         else:
             # Remove oxbow lakes
             if remove_oxbow:
@@ -290,9 +290,9 @@ class LineFilter:
                 filtered = [line for line in filtered
                             if line not in short_disjoint
                             and line not in oxbow]
-                filtered = MultiLineString(filtered)
+                filtered = linemerge(filtered)
             else:
                 filtered = [line for line in filtered
                             if line not in short_disjoint]
-                filtered = MultiLineString(filtered)
+                filtered = linemerge(filtered)
         return filtered
